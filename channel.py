@@ -9,6 +9,8 @@ from lib.data import ChatCommandArgs
 from lib.helper.chat import feature, permission
 from lib.helper.message import messagesFromItems
 
+from . import library
+
 
 @feature('quotes')
 async def commandQuote(args: ChatCommandArgs) -> bool:
@@ -21,57 +23,32 @@ async def commandQuote(args: ChatCommandArgs) -> bool:
         if since < cooldown:
             return False
 
-    cursor: aioodbc.cursor.Cursor
-    async with await args.database.cursor() as cursor:
-        query: str
-        quote: Optional[str]
-        if len(args.message) < 2:
-            query = '''
-SELECT quote FROM quotes WHERE broadcaster=? ORDER BY random() LIMIT 1
-'''
-            await cursor.execute(query, (args.chat.channel,))
-            quote, = await cursor.fetchone() or [None]  # type: ignore  # noqa: E501
+    quote: Optional[str]
+    if len(args.message) < 2:
+        quote = await library.getRandomQuote(args.database, args.chat.channel)
+        if quote is None:
+            args.chat.send('There is no quotes added')
+        else:
+            args.chat.send(f'Quote: {quote}')
+            args.chat.sessionData['quote'] = args.timestamp
+    else:
+        try:
+            id: int = int(args.message[1])
+            quote = await library.getQuoteById(
+                args.database, args.chat.channel, id)
             if quote is None:
-                args.chat.send('There is no quotes added')
+                args.chat.send('Cannot find that quote')
             else:
                 args.chat.send(f'Quote: {quote}')
                 args.chat.sessionData['quote'] = args.timestamp
-        else:
-            try:
-                id: int = int(args.message[1])
-                query = '''
-SELECT quote FROM quotes WHERE broadcaster=? AND quoteId=?
-'''
-                await cursor.execute(query, (args.chat.channel, id))
-                quote, = await cursor.fetchone() or [None]  # type: ignore  # noqa: E501
-                if quote is None:
-                    args.chat.send('Cannot find that quote')
-                else:
-                    args.chat.send(f'Quote: {quote}')
-                    args.chat.sessionData['quote'] = args.timestamp
-            except ValueError:
-                num: int = len(args.message) - 1
-                where: str
-                where = ' AND '.join(['? IN (SELECT tag FROM quotes_tags t '
-                                      'WHERE t.quoteId=q.quoteId)'] * num)
-                query = ('''
-SELECT quoteId FROM quotes WHERE broadcaster=? AND quote MATCH ?
-UNION SELECT quoteId FROM quotes q WHERE broadcaster=? AND ''' + where)
-                query = '''
-SELECT quote FROM quotes
-    WHERE quoteId=(
-        SELECT quoteId FROM (%s) ORDER BY RANDOM() LIMIT 1)''' % query
-
-                params: Tuple[Any, ...]
-                params = (args.chat.channel, args.message.query,
-                          args.chat.channel,) + tuple(args.message.lower)[1:]
-                await cursor.execute(query, params)
-                quote, = await cursor.fetchone() or [None]  # type: ignore  # noqa: E501
-                if quote is None:
-                    args.chat.send('Cannot find a matching quote')
-                else:
-                    args.chat.send('Quote: ' + quote)
-                    args.chat.sessionData['quote'] = args.timestamp
+        except ValueError:
+            quote = await library.getRandomQuoteBySearch(
+                args.database, args.chat.channel, list(args.message)[1:])
+            if quote is None:
+                args.chat.send('Cannot find a matching quote')
+            else:
+                args.chat.send('Quote: ' + quote)
+                args.chat.sessionData['quote'] = args.timestamp
     return True
 
 
@@ -86,21 +63,39 @@ async def commandAnyQuote(args: ChatCommandArgs) -> bool:
     else:
         who = None
     '''
-    cursor: aioodbc.cursor.Cursor
-    async with await args.database.cursor() as cursor:
-        query: str
-        params: Tuple[Any, ...]
-        msg: str
-        quote: Optional[str]
-        broadcaster: Optional[str]
-        if len(args.message) < 2:
-            query = '''
-SELECT quote, broadcaster FROM quotes ORDER BY random() LIMIT 1
-'''
-            await cursor.execute(query)
-            quote, broadcaster = await cursor.fetchone() or [None, None]  # type: ignore  # noqa: E501
+    msg: str
+    quote: Optional[str]
+    broadcaster: Optional[str]
+    if len(args.message) < 2:
+        quote, broadcaster = await library.getAnyRandomQuote(args.database)
+        if quote is None:
+            args.chat.send('There is no quotes added')
+        else:
+            msg = f'Quote from {broadcaster}: {quote}'
+            if len(msg) > bot.config.messageLimit:
+                args.chat.send(f'Quote: {quote}')
+                args.chat.send(f'From: {broadcaster}')
+            else:
+                args.chat.send(msg)
+    else:
+        try:
+            id: int = int(args.message[1])
+            quote, broadcaster = await library.getAnyQuoteById(
+                args.database, id)
             if quote is None:
-                args.chat.send('There is no quotes added')
+                args.chat.send('Cannot find that quote')
+            else:
+                msg = f'Quote from {broadcaster}: {quote}'
+                if len(msg) > bot.config.messageLimit:
+                    args.chat.send('Quote: {quote}')
+                    args.chat.send(f'From: {broadcaster}')
+                else:
+                    args.chat.send(msg)
+        except ValueError:
+            quote, broadcaster = await library.getAnyRandomQuoteBySearch(
+                args.database, list(args.message)[1:])
+            if quote is None:
+                args.chat.send('Cannot find a matching quote')
             else:
                 msg = f'Quote from {broadcaster}: {quote}'
                 if len(msg) > bot.config.messageLimit:
@@ -108,46 +103,6 @@ SELECT quote, broadcaster FROM quotes ORDER BY random() LIMIT 1
                     args.chat.send(f'From: {broadcaster}')
                 else:
                     args.chat.send(msg)
-        else:
-            try:
-                id: int = int(args.message[1])
-                query = 'SELECT quote, broadcaster FROM quotes WHERE docid=?'
-                await cursor.execute(query, (id,))
-                quote, broadcaster = await cursor.fetchone() or [None, None]  # type: ignore  # noqa: E501
-                if quote is None:
-                    args.chat.send('Cannot find that quote')
-                else:
-                    msg = f'Quote from {broadcaster}: {quote}'
-                    if len(msg) > bot.config.messageLimit:
-                        args.chat.send('Quote: {quote}')
-                        args.chat.send(f'From: {broadcaster}')
-                    else:
-                        args.chat.send(msg)
-            except ValueError:
-                num: int = len(args.message) - 1
-                where = ' AND '.join(['? IN (SELECT tag FROM quotes_tags t'
-                                      ' WHERE t.quoteId=q.quoteId)'] * num)
-                query = f'''
-SELECT quoteId FROM quotes WHERE quote MATCH ?
-    UNION SELECT quoteId FROM quotes q WHERE {where}
-'''
-                query = f'''
-SELECT quote, broadcaster FROM quotes WHERE quoteId=(
-    SELECT docid FROM ({query}) ORDER BY RANDOM() LIMIT 1)
-'''
-
-                params = (args.message.query,) + tuple(args.message.lower)[1:]
-                await cursor.execute(query, params)
-                quote, broadcaster = await cursor.fetchone() or [None, None]  # type: ignore  # noqa: E501
-                if quote is None:
-                    args.chat.send('Cannot find a matching quote')
-                else:
-                    msg = f'Quote from {broadcaster}: {quote}'
-                    if len(msg) > bot.config.messageLimit:
-                        args.chat.send(f'Quote: {quote}')
-                        args.chat.send(f'From: {broadcaster}')
-                    else:
-                        args.chat.send(msg)
     return True
 
 

@@ -60,7 +60,7 @@ async def getAnyRandomQuote(database: DatabaseMain
 SELECT quote, broadcaster FROM quotes ORDER BY random() LIMIT 1
 '''
         await cursor.execute(query)
-        return await cursor.fetchone() or [None, None]
+        return await cursor.fetchone() or (None, None)
 
 
 async def getAnyQuoteById(database: DatabaseMain,
@@ -72,7 +72,7 @@ async def getAnyQuoteById(database: DatabaseMain,
 SELECT quote, broadcaster FROM quotes WHERE quoteId=?
 '''
         await cursor.execute(query, (id,))
-        return await cursor.fetchone() or [None, None]
+        return await cursor.fetchone() or (None, None)
 
 
 async def getAnyRandomQuoteBySearch(database: DatabaseMain,
@@ -96,4 +96,4 @@ SELECT quote, broadcaster FROM quotes WHERE quoteId=(
         params: Tuple[Any, ...]
         params = (' '.join(words),) + tuple(w.lower() for w in words)
         await cursor.execute(query, params)
-        return (await cursor.fetchone() or [None])[0]
+        return await cursor.fetchone() or (None, None)

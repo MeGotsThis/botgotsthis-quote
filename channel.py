@@ -54,7 +54,7 @@ async def commandAnyQuote(args: ChatCommandArgs) -> bool:
 @feature('quotes')
 async def commandQuotes(args: ChatCommandArgs) -> bool:
     if len(args.message) == 1:
-        return await library.handleQuoteList(args.chat)
+        return await library.handleQuoteList(args)
 
     if not args.permissions.moderator:
         return False

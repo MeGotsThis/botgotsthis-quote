@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import List, Optional, Set
+from typing import List, Optional, Set  # noqa: F401
 
 import bot.utils
 from lib.data import ChatCommandArgs

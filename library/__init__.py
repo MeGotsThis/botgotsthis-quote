@@ -232,7 +232,7 @@ async def handleTagQuote(args: ChatCommandArgs) -> bool:
         args.chat.send('Quote id is not a number.')
         return True
     if len(args.message) >= 4:
-        quoteTags: List[str, ...] = list(args.message.lower)[3:]
+        quoteTags: List[str] = list(args.message.lower)[3:]
         return await processQuoteTags(args, id, quoteTags)
     else:
         return await processListQuoteTags(args, id)
@@ -297,6 +297,7 @@ Quote id {id} could not been found. It may not exist.''')
         args.chat.send(messagesFromItems(tags, 'Tags: '))
     except Exception:
         pass
+    return True
 
 
 async def handleListQuoteIds(args: ChatCommandArgs) -> bool:

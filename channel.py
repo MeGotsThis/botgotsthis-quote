@@ -13,15 +13,15 @@ async def commandQuote(args: ChatCommandArgs) -> bool:
 
     quoteSent: bool = False
     if len(args.message) < 2:
-        quoteSent = library.processRandomQuote(args)
+        quoteSent = await library.processRandomQuote(args)
     else:
         try:
             quoteId: int = int(args.message[1])
         except ValueError:
             words: List[str] = list(args.message)[1:]
-            quoteSent = library.processRandomQuoteSearch(args, words)
+            quoteSent = await library.processRandomQuoteSearch(args, words)
         else:
-            quoteSent = library.processQuoteId(args, quoteId)
+            quoteSent = await library.processQuoteId(args, quoteId)
     if quoteSent:
         await library.quoteMarkCooldown(args)
     return True
@@ -39,15 +39,15 @@ async def commandAnyQuote(args: ChatCommandArgs) -> bool:
         who = None
     '''
     if len(args.message) < 2:
-        library.processAnyRandomQuote(args)
+        await library.processAnyRandomQuote(args)
     else:
         try:
             quoteId: int = int(args.message[1])
         except ValueError:
             words: List[str] = list(args.message)[1:]
-            library.processAnyRandomQuoteSearch(args, words)
+            await library.processAnyRandomQuoteSearch(args, words)
         else:
-            library.processAnyQuoteId(args, quoteId)
+            await library.processAnyQuoteId(args, quoteId)
     return True
 
 

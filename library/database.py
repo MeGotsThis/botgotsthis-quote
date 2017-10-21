@@ -161,13 +161,13 @@ async def copyQuote(database: DatabaseMain,
                     from_channel: str,
                     to_channel: str,
                     nick: str,
-                    quoteId: int) -> bool:
+                    quoteId: int) -> int:
     cursor: aioodbc.cursor.Cursor
     async with await database.cursor() as cursor:
         query: str = '''
 SELECT quote FROM quotes WHERE quoteId=? AND broadcaster=?
 '''
-        await cursor.execute(query, (id, from_channel))
+        await cursor.execute(query, (quoteId, from_channel))
         quote: Optional[str] = ((await cursor.fetchone()) or [None])[0]
         if quote is None:
             return False
@@ -195,7 +195,7 @@ VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?)
 '''
         await cursor.execute(query, (quoteId, to_channel, quote, nick))
         await database.commit()
-        return True
+        return quoteId
 
 
 async def getTagsOfQuote(database: DatabaseMain,

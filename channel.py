@@ -279,7 +279,6 @@ These tags could not be used: {', '.join(ignoreTags)}''')
                     args.chat.send(f'''\
 Quote id {id} could not been found. It may not exist.''')
                     return True
-                tags: Set[str]
                 tags = await library.getTagsOfQuote(args.database, id)
                 if not tags:
                     args.chat.send('The quote does not have any tags')

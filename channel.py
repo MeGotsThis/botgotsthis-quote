@@ -1,4 +1,4 @@
-﻿from typing import List  # noqa: F401
+﻿from typing import Awaitable, Callable, Dict, List  # noqa: F401
 
 from lib.data import ChatCommandArgs
 from lib.helper.chat import feature, permission
@@ -62,16 +62,23 @@ async def commandQuotes(args: ChatCommandArgs) -> bool:
     if len(args.message) < 2:
         return False
 
-    if args.message.lower[1] in ['add', 'insert']:
-        return await library.handleAddQuote(args)
-    elif args.message.lower[1] in ['edit', 'update']:
-        return await library.handleEditQuote(args)
-    elif args.message.lower[1] in ['del', 'delete', 'rem', 'remove']:
-        return await library.handleDeleteQuote(args)
-    elif args.message.lower[1] in ['copy']:
-        return await library.handleCopyQuote(args)
-    elif args.message.lower[1] in ['tag', 'tags']:
-        return await library.handleTagQuote(args)
-    elif args.message.lower[1] in ['id', 'list']:
-        return await library.handleListQuoteIds(args)
+    handlers: Dict[str, Callable[[ChatCommandArgs], Awaitable[bool]]]
+    handlers = {
+        'add': library.handleAddQuote,
+        'insert': library.handleAddQuote,
+        'edit': library.handleEditQuote,
+        'update': library.handleEditQuote,
+        'del': library.handleDeleteQuote,
+        'delete': library.handleDeleteQuote,
+        'rem': library.handleDeleteQuote,
+        'remove': library.handleDeleteQuote,
+        'copy': library.handleCopyQuote,
+        'tag': library.handleTagQuote,
+        'tags': library.handleTagQuote,
+        'id': library.handleListQuoteIds,
+        'list': library.handleListQuoteIds,
+    }
+
+    if args.message.lower[1] in handlers:
+        return await handlers[args.message.lower[1]](args)
     return True

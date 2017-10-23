@@ -8,7 +8,7 @@ from . import library
 
 @feature('quotes')
 async def commandQuote(args: ChatCommandArgs) -> bool:
-    if library.quoteInCooldown(args):
+    if await library.quoteInCooldown(args):
         return False
 
     quoteSent: bool = False
@@ -23,7 +23,7 @@ async def commandQuote(args: ChatCommandArgs) -> bool:
         else:
             quoteSent = await library.processQuoteId(args, quoteId)
     if quoteSent:
-        await library.quoteMarkCooldown(args)
+        library.quoteMarkCooldown(args)
     return True
 
 
@@ -53,13 +53,10 @@ async def commandAnyQuote(args: ChatCommandArgs) -> bool:
 
 @feature('quotes')
 async def commandQuotes(args: ChatCommandArgs) -> bool:
-    if len(args.message) == 1:
+    if len(args.message) < 2:
         return await library.handleQuoteList(args)
 
     if not args.permissions.moderator:
-        return False
-
-    if len(args.message) < 2:
         return False
 
     handlers: Dict[str, Callable[[ChatCommandArgs], Awaitable[bool]]]

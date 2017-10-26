@@ -17,7 +17,7 @@ services:
   - postgresql
 env:
     global:
-        - BOTGOTSTHIS_VER=7.0.2
+        - BOTGOTSTHIS_VER=7.0.3
         - PKG_NAME=quote
 before_install:
   - BOTGOTSTHIS_DIR=$HOME/BotGotsThis

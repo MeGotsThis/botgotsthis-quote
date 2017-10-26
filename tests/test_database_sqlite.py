@@ -4,7 +4,7 @@ from tests.database.sqlite.test_database import TestSqlite
 from .base_database import TestDatabaseQuotes
 
 
-class TestLibraryFaqSqlite(TestDatabaseQuotes, TestSqlite):
+class TestLibraryQuoteSqlite(TestDatabaseQuotes, TestSqlite):
     async def setUp(self):
         await super().setUp()
         sqlFile = os.path.join(

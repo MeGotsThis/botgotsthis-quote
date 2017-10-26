@@ -61,7 +61,7 @@ SELECT quote, broadcaster FROM quotes ORDER BY random() LIMIT 1
 '''
         await cursor.execute(query)
         row: Optional[Tuple[str, str]] = await cursor.fetchone()
-        return row[0], row[1] if row else (None, None)
+        return (row[0], row[1]) if row else (None, None)
 
 
 async def getAnyQuoteById(database: DatabaseMain,
@@ -74,7 +74,7 @@ SELECT quote, broadcaster FROM quotes WHERE quoteId=?
 '''
         await cursor.execute(query, (id,))
         row: Optional[Tuple[str, str]] = await cursor.fetchone()
-        return row[0], row[1] if row else (None, None)
+        return (row[0], row[1]) if row else (None, None)
 
 
 async def getAnyRandomQuoteBySearch(database: DatabaseMain,
@@ -84,9 +84,9 @@ async def getAnyRandomQuoteBySearch(database: DatabaseMain,
     async with await database.cursor() as cursor:
         query: str
         query = '''
-SELECT quoteId FROM quotes WHERE TRUE AND
+SELECT quoteId FROM quotes WHERE 1=1 AND
 ''' + ' AND '.join(['quote LIKE ?'] * len(words)) + '''
-    UNION SELECT quoteId FROM quotes q WHERE TRUE AND
+    UNION SELECT quoteId FROM quotes q WHERE 1=1 AND
 ''' + ' AND '.join(['? IN (SELECT LOWER(tag) FROM quotes_tags AS t '
                     'WHERE t.quoteId=q.quoteId)'] * len(words))
         query = f'''
@@ -99,7 +99,7 @@ SELECT quote, broadcaster FROM quotes WHERE quoteId=(
                   + tuple(w.lower() for w in words))
         await cursor.execute(query, params)
         row: Optional[Tuple[str, str]] = await cursor.fetchone()
-        return row[0], row[1] if row else (None, None)
+        return (row[0], row[1]) if row else (None, None)
 
 
 async def addQuote(database: DatabaseMain,

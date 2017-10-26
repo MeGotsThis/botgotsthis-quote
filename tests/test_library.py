@@ -443,6 +443,14 @@ class TestLibraryQuoteHandleCopy(TestLibraryQuoteBase):
         self.channel.send.assert_called_once_with(
             StrContains(self.channel.channel, 'copied', '0', '1'))
 
+    async def test_none(self):
+        self.mock_copier.return_value = None
+        self.args = self.args._replace(message=Message('!quotes copy 0'))
+        self.assertIs(await library.handleCopyQuote(self.args), True)
+        self.assertTrue(self.mock_copier.called)
+        self.channel.send.assert_called_once_with(
+            StrContains('not', 'copied'))
+
     async def test_except(self):
         self.mock_copier.side_effect = pyodbc.Error
         self.args = self.args._replace(message=Message('!quotes copy 0'))

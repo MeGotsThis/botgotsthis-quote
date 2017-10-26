@@ -218,8 +218,11 @@ I am not in {to} or quotes feature is not enabled in {to}''')
 Quote id {id} could not been found. It may not exist.''')
             return True
 
-        quoteId: int = await db_helper.copyQuote(
+        quoteId: Optional[int] = await db_helper.copyQuote(
             args.database, args.chat.channel, to, args.nick, id)
+        if quoteId is None:
+            args.chat.send('Quote could not been copied.')
+            return True
         args.chat.send(f'''\
 Quote id {id} has been copied for {to} with new id {quoteId}''')
     except pyodbc.Error:

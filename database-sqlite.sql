@@ -1,15 +1,9 @@
 CREATE TABLE quotes (
     quoteId INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    addedTime TIMESTAMP NOT NULL,
     broadcaster VARCHAR NOT NULL,
-    quote VARCHAR NOT NULL,
+    quote VARCHAR NOT NULL
 );
 CREATE INDEX quotes_broadcaster ON quotes (broadcaster);
-
-CREATE VIRTUAL TABLE quotes USING fts4(
-    broadcaster,
-    quote
-);
 
 CREATE TABLE quotes_tags (
     quoteId INTEGER NOT NULL,

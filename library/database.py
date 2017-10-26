@@ -35,7 +35,7 @@ async def getRandomQuoteBySearch(database: DatabaseMain,
     async with await database.cursor() as cursor:
         query: str
         query = '''
-SELECT quoteId FROM quotes WHERE broadcaster=? AND 
+SELECT quoteId FROM quotes WHERE broadcaster=? AND
 ''' + ' AND '.join(['quote LIKE ?'] * len(words)) + '''
     UNION SELECT quoteId FROM quotes q WHERE broadcaster=? AND
 ''' + ' AND '.join(['? IN (SELECT LOWER(tag) FROM quotes_tags AS t '
@@ -250,7 +250,7 @@ async def getQuoteIdsByWords(database: DatabaseMain,
     cursor: aioodbc.cursor.Cursor
     async with await database.cursor() as cursor:
         query: str = '''
-SELECT quoteId FROM quotes WHERE broadcaster=? AND 
+SELECT quoteId FROM quotes WHERE broadcaster=? AND
 ''' + ' AND '.join(['quote LIKE ?'] * len(words)) + '''
     UNION SELECT quoteId FROM quotes q WHERE broadcaster=? AND
 ''' + ' AND '.join(['? IN (SELECT LOWER(tag) FROM quotes_tags AS t '

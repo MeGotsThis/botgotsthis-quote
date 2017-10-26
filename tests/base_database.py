@@ -272,5 +272,5 @@ INSERT INTO quotes_tags VALUES (1, 'Keepo')
     async def test_ids(self):
         self.assertCountEqual(
             await database.getQuoteIdsByWords(self.database, 'megotsthis',
-                                             ['Keepo']),
+                                              ['Keepo']),
             [1])

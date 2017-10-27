@@ -38,7 +38,8 @@ ALTER SEQUENCE quotes_quoteid_seq RESTART WITH 2
             2)
         self.assertCountEqual(await self.rows('SELECT * FROM quotes'),
                               [(1, 'megotsthis', 'Kappa', self.doc_kappa),
-                               (2, 'megotsthis', 'FrankerZ', self.doc_frankerz),
+                               (2, 'megotsthis', 'FrankerZ',
+                                self.doc_frankerz),
                                ])
         self.assertCountEqual(await self.rows('SELECT * FROM quotes_tags'),
                               [(1, 'Keepo'),
@@ -53,7 +54,8 @@ ALTER SEQUENCE quotes_quoteid_seq RESTART WITH 2
                                        'botgotsthis', 1, 'FrankerZ'),
             True)
         self.assertCountEqual(await self.rows('SELECT * FROM quotes'),
-                              [(1, 'megotsthis', 'FrankerZ', self.doc_frankerz),
+                              [(1, 'megotsthis', 'FrankerZ',
+                                self.doc_frankerz),
                                ])
         self.assertCountEqual(await self.rows('SELECT * FROM quotes_tags'),
                               [(1, 'Keepo'),

@@ -124,8 +124,6 @@ SELECT quoteId FROM quotes WHERE 1=1 AND
 SELECT quote, broadcaster FROM quotes WHERE quoteId=(
     SELECT quoteId FROM ({query}) AS q ORDER BY RANDOM() LIMIT 1)
 '''
-
-        params: Tuple[str, ...]
         params = (tuple(f'%{w}%' for w in words)
                   + tuple(w.lower() for w in words))
         await cursor.execute(query, params)

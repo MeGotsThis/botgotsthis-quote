@@ -34,6 +34,22 @@ async def getRandomQuoteBySearch(database: DatabaseMain,
     cursor: aioodbc.cursor.Cursor
     async with await database.cursor() as cursor:
         query: str
+        params: Tuple[str, ...]
+        if database.isPostgres:
+            query = '''
+SELECT quoteId FROM quotes WHERE broadcaster=? AND document @@ to_tsquery(?)
+    UNION SELECT quoteId FROM quotes q WHERE broadcaster=? AND
+''' + ' AND '.join(['? IN (SELECT LOWER(tag) FROM quotes_tags AS t '
+                    'WHERE t.quoteId=q.quoteId)'] * len(words))
+            query = '''
+SELECT quote FROM quotes
+    WHERE quoteId=(
+        SELECT quoteId FROM (%s) AS q ORDER BY RANDOM() LIMIT 1)''' % query
+            params = ((channel, ' | '.join(words), channel,)
+                      + tuple(w.lower() for w in words))
+            await cursor.execute(query, params)
+            return (await cursor.fetchone() or [None])[0]
+
         query = '''
 SELECT quoteId FROM quotes WHERE broadcaster=? AND
 ''' + ' AND '.join(['quote LIKE ?'] * len(words)) + '''
@@ -44,8 +60,6 @@ SELECT quoteId FROM quotes WHERE broadcaster=? AND
 SELECT quote FROM quotes
     WHERE quoteId=(
         SELECT quoteId FROM (%s) AS q ORDER BY RANDOM() LIMIT 1)''' % query
-
-        params: Tuple[str, ...]
         params = ((channel,) + tuple(f'%{w}%' for w in words) + (channel,)
                   + tuple(w.lower() for w in words))
         await cursor.execute(query, params)
@@ -83,6 +97,23 @@ async def getAnyRandomQuoteBySearch(database: DatabaseMain,
     cursor: aioodbc.cursor.Cursor
     async with await database.cursor() as cursor:
         query: str
+        params: Tuple[str, ...]
+        row: Optional[Tuple[str, str]]
+        if database.isPostgres:
+            query = '''
+SELECT quoteId FROM quotes WHERE document @@ to_tsquery(?)
+    UNION SELECT quoteId FROM quotes q WHERE
+''' + ' AND '.join(['? IN (SELECT LOWER(tag) FROM quotes_tags AS t '
+                    'WHERE t.quoteId=q.quoteId)'] * len(words))
+            query = '''
+SELECT quote, broadcaster FROM quotes
+    WHERE quoteId=(
+        SELECT quoteId FROM (%s) AS q ORDER BY RANDOM() LIMIT 1)''' % query
+            params = ((' | '.join(words),) + tuple(w.lower() for w in words))
+            await cursor.execute(query, params)
+            row = await cursor.fetchone()
+            return (row[0], row[1]) if row else (None, None)
+
         query = '''
 SELECT quoteId FROM quotes WHERE 1=1 AND
 ''' + ' AND '.join(['quote LIKE ?'] * len(words)) + '''
@@ -98,7 +129,7 @@ SELECT quote, broadcaster FROM quotes WHERE quoteId=(
         params = (tuple(f'%{w}%' for w in words)
                   + tuple(w.lower() for w in words))
         await cursor.execute(query, params)
-        row: Optional[Tuple[str, str]] = await cursor.fetchone()
+        row = await cursor.fetchone()
         return (row[0], row[1]) if row else (None, None)
 
 
@@ -108,15 +139,22 @@ async def addQuote(database: DatabaseMain,
                    quote: str) -> int:
     cursor: aioodbc.cursor.Cursor
     async with await database.cursor() as cursor:
-        query: str = '''
+        query: str
+        quoteId: int
+        if database.isPostgres:
+            query = '''
+INSERT INTO quotes (broadcaster, quote, document) VALUES (?, ?, to_tsvector(?))
+'''
+            await cursor.execute(query, (channel, quote, quote))
+            await cursor.execute('SELECT lastval()')
+            quoteId = int((await cursor.fetchone() or [0])[0])
+        else:
+            query = '''
 INSERT INTO quotes (broadcaster, quote) VALUES (?, ?)
 '''
-        await cursor.execute(query, (channel, quote))
-        if database.isSqlite:
+            await cursor.execute(query, (channel, quote))
             await cursor.execute('SELECT last_insert_rowid()')
-        else:
-            await cursor.execute('SELECT lastval()')
-        quoteId: int = int((await cursor.fetchone() or [0])[0])
+            quoteId = int((await cursor.fetchone() or [0])[0])
 
         query = '''
 INSERT INTO quotes_history (quoteId, createdTime, broadcaster, quote, editor)
@@ -134,10 +172,18 @@ async def updateQuote(database: DatabaseMain,
                       quote: str) -> bool:
     cursor: aioodbc.cursor.Cursor
     async with await database.cursor() as cursor:
-        query: str = '''
+        query: str
+        if database.isPostgres:
+            query = '''
+UPDATE quotes SET quote=?, document=to_tsvector(?)
+    WHERE quoteId=? AND broadcaster=?
+            '''
+            await cursor.execute(query, (quote, quote, quoteId, channel))
+        else:
+            query = '''
 UPDATE quotes SET quote=? WHERE quoteId=? AND broadcaster=?
 '''
-        await cursor.execute(query, (quote, quoteId, channel))
+            await cursor.execute(query, (quote, quoteId, channel))
         if cursor.rowcount == 0:
             return False
 
@@ -177,15 +223,21 @@ SELECT quote FROM quotes WHERE quoteId=? AND broadcaster=?
         quote: Optional[str] = ((await cursor.fetchone()) or [None])[0]
         if quote is None:
             return None
-        query = '''
+        newQuoteId: int
+        if database.isPostgres:
+            query = '''
+INSERT INTO quotes (broadcaster, quote, document) VALUES (?, ?, to_tsvector(?))
+'''
+            await cursor.execute(query, (to_channel, quote, quote))
+            await cursor.execute('SELECT lastval()')
+            newQuoteId = int((await cursor.fetchone() or [0])[0])
+        else:
+            query = '''
 INSERT INTO quotes (broadcaster, quote) VALUES (?, ?)
 '''
-        await cursor.execute(query, (to_channel, quote))
-        if database.isSqlite:
+            await cursor.execute(query, (to_channel, quote))
             await cursor.execute('SELECT last_insert_rowid()')
-        else:
-            await cursor.execute('SELECT lastval()')
-        newQuoteId: int = int((await cursor.fetchone() or [0])[0])
+            newQuoteId = int((await cursor.fetchone() or [0])[0])
 
         query = '''
 SELECT tag FROM quotes_tags WHERE quoteId=?
@@ -249,14 +301,29 @@ async def getQuoteIdsByWords(database: DatabaseMain,
                              words: Sequence[str]) -> List[int]:
     cursor: aioodbc.cursor.Cursor
     async with await database.cursor() as cursor:
-        query: str = '''
+        query: str
+        params: Tuple[str, ...]
+        if database.isPostgres:
+            query = '''
+SELECT quoteId FROM quotes WHERE broadcaster=? AND document @@ to_tsquery(?)
+    UNION SELECT quoteId FROM quotes q WHERE broadcaster=? AND
+''' + ' AND '.join(['? IN (SELECT LOWER(tag) FROM quotes_tags AS t '
+                    'WHERE t.quoteId=q.quoteId)'] * len(words))
+            query = '''
+SELECT quoteId FROM (%s) AS q ORDER BY quoteId ASC
+''' % query
+            params = ((channel, ' | '.join(words), channel,)
+                      + tuple(w.lower() for w in words))
+            await cursor.execute(query, params)
+            return [i async for i, in await cursor.execute(query, params)]
+
+        query = '''
 SELECT quoteId FROM quotes WHERE broadcaster=? AND
 ''' + ' AND '.join(['quote LIKE ?'] * len(words)) + '''
     UNION SELECT quoteId FROM quotes q WHERE broadcaster=? AND
 ''' + ' AND '.join(['? IN (SELECT LOWER(tag) FROM quotes_tags AS t '
                     'WHERE t.quoteId=q.quoteId)'] * len(words))
         query = 'SELECT quoteId FROM (' + query + ') AS q ORDER BY quoteId ASC'
-        params: Tuple[str, ...]
         params = ((channel,) + tuple(f'%{w}%' for w in words) + (channel,)
                   + tuple(w.lower() for w in words))
         return [i async for i, in await cursor.execute(query, params)]

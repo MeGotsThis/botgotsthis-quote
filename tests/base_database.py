@@ -135,11 +135,11 @@ INSERT INTO quotes_tags VALUES (1, 'Keepo')
             await database.updateQuote(self.database, 'botgotsthis',
                                        'botgotsthis', 1, 'FrankerZ'),
             False)
-        self.assertCountEqual(await self.rows('SELECT * FROM quotes_tags'),
-                              [(1, 'Keepo'),
-                               ])
         self.assertCountEqual(await self.rows('SELECT * FROM quotes'),
                               [(1, 'megotsthis', 'Kappa'),
+                               ])
+        self.assertCountEqual(await self.rows('SELECT * FROM quotes_tags'),
+                              [(1, 'Keepo'),
                                ])
         self.assertEqual(await self.rows('SELECT * FROM quotes_history'), [])
 

@@ -1,9 +1,11 @@
 CREATE TABLE quotes (
     quoteId SERIAL NOT NULL PRIMARY KEY,
     broadcaster VARCHAR NOT NULL,
-    quote VARCHAR NOT NULL
+    quote VARCHAR NOT NULL,
+    document tsvector
 );
 CREATE INDEX quotes_broadcaster ON quotes (broadcaster);
+CREATE INDEX idx_quotes_search ON quotes USING gin(document);
 
 CREATE TABLE quotes_tags (
     quoteId INTEGER NOT NULL,

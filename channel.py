@@ -23,7 +23,7 @@ async def commandQuote(args: ChatCommandArgs) -> bool:
         else:
             quoteSent = await library.processQuoteId(args, quoteId)
     if quoteSent:
-        library.quoteMarkCooldown(args)
+        await library.quoteMarkCooldown(args)
     return True
 
 

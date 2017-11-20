@@ -5,10 +5,10 @@ import aioodbc.cursor  # noqa: F401
 from lib.database import DatabaseMain
 
 
-async def getRandomQuote(database: DatabaseMain,
-                         channel: str) -> Optional[str]:
+async def getRandomQuote(channel: str) -> Optional[str]:
+    db: DatabaseMain
     cursor: aioodbc.cursor.Cursor
-    async with await database.cursor() as cursor:
+    async with DatabaseMain.acquire() as db, await db.cursor() as cursor:
         query: str = '''
 SELECT quote FROM quotes WHERE broadcaster=? ORDER BY random() LIMIT 1
 '''
@@ -16,11 +16,11 @@ SELECT quote FROM quotes WHERE broadcaster=? ORDER BY random() LIMIT 1
         return (await cursor.fetchone() or [None])[0]
 
 
-async def getQuoteById(database: DatabaseMain,
-                       channel: str,
+async def getQuoteById(channel: str,
                        id: int) -> Optional[str]:
+    db: DatabaseMain
     cursor: aioodbc.cursor.Cursor
-    async with await database.cursor() as cursor:
+    async with DatabaseMain.acquire() as db, await db.cursor() as cursor:
         query: str = '''
 SELECT quote FROM quotes WHERE broadcaster=? AND quoteId=?
 '''
@@ -28,14 +28,14 @@ SELECT quote FROM quotes WHERE broadcaster=? AND quoteId=?
         return (await cursor.fetchone() or [None])[0]
 
 
-async def getRandomQuoteBySearch(database: DatabaseMain,
-                                 channel: str,
+async def getRandomQuoteBySearch(channel: str,
                                  words: Sequence[str]) -> Optional[str]:
+    db: DatabaseMain
     cursor: aioodbc.cursor.Cursor
-    async with await database.cursor() as cursor:
+    async with DatabaseMain.acquire() as db, await db.cursor() as cursor:
         query: str
         params: Tuple[str, ...]
-        if database.isPostgres:
+        if db.isPostgres:
             query = '''
 SELECT quoteId FROM quotes WHERE broadcaster=? AND document @@ to_tsquery(?)
     UNION SELECT quoteId FROM quotes q WHERE broadcaster=? AND
@@ -66,10 +66,10 @@ SELECT quote FROM quotes
         return (await cursor.fetchone() or [None])[0]
 
 
-async def getAnyRandomQuote(database: DatabaseMain
-                            ) -> Tuple[Optional[str], Optional[str]]:
+async def getAnyRandomQuote() -> Tuple[Optional[str], Optional[str]]:
+    db: DatabaseMain
     cursor: aioodbc.cursor.Cursor
-    async with await database.cursor() as cursor:
+    async with DatabaseMain.acquire() as db, await db.cursor() as cursor:
         query: str = '''
 SELECT quote, broadcaster FROM quotes ORDER BY random() LIMIT 1
 '''
@@ -78,11 +78,11 @@ SELECT quote, broadcaster FROM quotes ORDER BY random() LIMIT 1
         return (row[0], row[1]) if row else (None, None)
 
 
-async def getAnyQuoteById(database: DatabaseMain,
-                          id: int
+async def getAnyQuoteById(id: int
                           ) -> Tuple[Optional[str], Optional[str]]:
+    db: DatabaseMain
     cursor: aioodbc.cursor.Cursor
-    async with await database.cursor() as cursor:
+    async with DatabaseMain.acquire() as db, await db.cursor() as cursor:
         query: str = '''
 SELECT quote, broadcaster FROM quotes WHERE quoteId=?
 '''
@@ -91,15 +91,15 @@ SELECT quote, broadcaster FROM quotes WHERE quoteId=?
         return (row[0], row[1]) if row else (None, None)
 
 
-async def getAnyRandomQuoteBySearch(database: DatabaseMain,
-                                    words: Sequence[str]
+async def getAnyRandomQuoteBySearch(words: Sequence[str]
                                     ) -> Tuple[Optional[str], Optional[str]]:
+    db: DatabaseMain
     cursor: aioodbc.cursor.Cursor
-    async with await database.cursor() as cursor:
+    async with DatabaseMain.acquire() as db, await db.cursor() as cursor:
         query: str
         params: Tuple[str, ...]
         row: Optional[Tuple[str, str]]
-        if database.isPostgres:
+        if db.isPostgres:
             query = '''
 SELECT quoteId FROM quotes WHERE document @@ to_tsquery(?)
     UNION SELECT quoteId FROM quotes q WHERE
@@ -131,15 +131,15 @@ SELECT quote, broadcaster FROM quotes WHERE quoteId=(
         return (row[0], row[1]) if row else (None, None)
 
 
-async def addQuote(database: DatabaseMain,
-                   channel: str,
+async def addQuote(channel: str,
                    nick: str,
                    quote: str) -> int:
+    db: DatabaseMain
     cursor: aioodbc.cursor.Cursor
-    async with await database.cursor() as cursor:
+    async with DatabaseMain.acquire() as db, await db.cursor() as cursor:
         query: str
         quoteId: int
-        if database.isPostgres:
+        if db.isPostgres:
             query = '''
 INSERT INTO quotes (broadcaster, quote, document) VALUES (?, ?, to_tsvector(?))
 '''
@@ -159,19 +159,19 @@ INSERT INTO quotes_history (quoteId, createdTime, broadcaster, quote, editor)
     VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?)
 '''
         await cursor.execute(query, (quoteId, channel, quote, nick))
-        await database.commit()
+        await db.commit()
         return quoteId
 
 
-async def updateQuote(database: DatabaseMain,
-                      channel: str,
+async def updateQuote(channel: str,
                       nick: str,
                       quoteId: int,
                       quote: str) -> bool:
+    db: DatabaseMain
     cursor: aioodbc.cursor.Cursor
-    async with await database.cursor() as cursor:
+    async with DatabaseMain.acquire() as db, await db.cursor() as cursor:
         query: str
-        if database.isPostgres:
+        if db.isPostgres:
             query = '''
 UPDATE quotes SET quote=?, document=to_tsvector(?)
     WHERE quoteId=? AND broadcaster=?
@@ -190,30 +190,30 @@ INSERT INTO quotes_history (quoteId, createdTime, broadcaster, quote, editor)
     VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?)
 '''
         await cursor.execute(query, (quoteId, channel, quote, nick))
-        await database.commit()
+        await db.commit()
         return True
 
 
-async def deleteQuote(database: DatabaseMain,
-                      channel: str,
+async def deleteQuote(channel: str,
                       quoteId: int) -> bool:
+    db: DatabaseMain
     cursor: aioodbc.cursor.Cursor
-    async with await database.cursor() as cursor:
+    async with DatabaseMain.acquire() as db, await db.cursor() as cursor:
         query: str = '''
 DELETE FROM quotes WHERE quoteId=? AND broadcaster=?
 '''
         await cursor.execute(query, (quoteId, channel))
-        await database.commit()
+        await db.commit()
         return cursor.rowcount != 0
 
 
-async def copyQuote(database: DatabaseMain,
-                    from_channel: str,
+async def copyQuote(from_channel: str,
                     to_channel: str,
                     nick: str,
                     quoteId: int) -> Optional[int]:
+    db: DatabaseMain
     cursor: aioodbc.cursor.Cursor
-    async with await database.cursor() as cursor:
+    async with DatabaseMain.acquire() as db, await db.cursor() as cursor:
         query: str = '''
 SELECT quote FROM quotes WHERE quoteId=? AND broadcaster=?
 '''
@@ -222,7 +222,7 @@ SELECT quote FROM quotes WHERE quoteId=? AND broadcaster=?
         if quote is None:
             return None
         newQuoteId: int
-        if database.isPostgres:
+        if db.isPostgres:
             query = '''
 INSERT INTO quotes (broadcaster, quote, document) VALUES (?, ?, to_tsvector(?))
 '''
@@ -254,54 +254,54 @@ INSERT INTO quotes_history (quoteId, createdTime, broadcaster, quote, editor)
 VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?)
 '''
         await cursor.execute(query, (newQuoteId, to_channel, quote, nick))
-        await database.commit()
+        await db.commit()
         return newQuoteId
 
 
-async def getTagsOfQuote(database: DatabaseMain,
-                         quoteId: int) -> Set[str]:
+async def getTagsOfQuote(quoteId: int) -> Set[str]:
+    db: DatabaseMain
     cursor: aioodbc.cursor.Cursor
-    async with await database.cursor() as cursor:
+    async with DatabaseMain.acquire() as db, await db.cursor() as cursor:
         query: str = '''
 SELECT tag FROM quotes_tags WHERE quoteId=?
 '''
         return {t async for t, in await cursor.execute(query, (quoteId,))}
 
 
-async def addTagsToQuote(database: DatabaseMain,
-                         quoteId: int,
+async def addTagsToQuote(quoteId: int,
                          tags: List[str]) -> bool:
+    db: DatabaseMain
     cursor: aioodbc.cursor.Cursor
-    async with await database.cursor() as cursor:
+    async with DatabaseMain.acquire() as db, await db.cursor() as cursor:
         query: str = '''
 INSERT INTO quotes_tags (quoteId, tag) VALUES (?, ?)
 '''
         await cursor.executemany(query, map(lambda t: (quoteId, t), tags))
-        await database.commit()
+        await db.commit()
         return bool(tags)
 
 
-async def deleteTagsToQuote(database: DatabaseMain,
-                            quoteId: int,
+async def deleteTagsToQuote(quoteId: int,
                             tags: List[str]) -> bool:
+    db: DatabaseMain
     cursor: aioodbc.cursor.Cursor
-    async with await database.cursor() as cursor:
+    async with DatabaseMain.acquire() as db, await db.cursor() as cursor:
         query: str = '''
 DELETE FROM quotes_tags WHERE quoteId=? AND tag=?
 '''
         await cursor.executemany(query, map(lambda t: (quoteId, t), tags))
-        await database.commit()
+        await db.commit()
         return bool(tags)
 
 
-async def getQuoteIdsByWords(database: DatabaseMain,
-                             channel: str,
+async def getQuoteIdsByWords(channel: str,
                              words: Sequence[str]) -> List[int]:
+    db: DatabaseMain
     cursor: aioodbc.cursor.Cursor
-    async with await database.cursor() as cursor:
+    async with DatabaseMain.acquire() as db, await db.cursor() as cursor:
         query: str
         params: Tuple[str, ...]
-        if database.isPostgres:
+        if db.isPostgres:
             query = '''
 SELECT quoteId FROM quotes WHERE broadcaster=? AND document @@ to_tsquery(?)
     UNION SELECT quoteId FROM quotes q WHERE broadcaster=? AND

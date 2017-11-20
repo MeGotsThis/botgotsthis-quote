@@ -33,8 +33,7 @@ ALTER SEQUENCE quotes_quoteid_seq RESTART WITH 2
 
     async def test_add_quote(self):
         self.assertEqual(
-            await database.addQuote(self.database, 'megotsthis', 'botgotsthis',
-                                    'FrankerZ'),
+            await database.addQuote('megotsthis', 'botgotsthis', 'FrankerZ'),
             2)
         self.assertCountEqual(await self.rows('SELECT * FROM quotes'),
                               [(1, 'megotsthis', 'Kappa', self.doc_kappa),
@@ -50,8 +49,8 @@ ALTER SEQUENCE quotes_quoteid_seq RESTART WITH 2
 
     async def test_update_quote(self):
         self.assertEqual(
-            await database.updateQuote(self.database, 'megotsthis',
-                                       'botgotsthis', 1, 'FrankerZ'),
+            await database.updateQuote('megotsthis', 'botgotsthis', 1,
+                                       'FrankerZ'),
             True)
         self.assertCountEqual(await self.rows('SELECT * FROM quotes'),
                               [(1, 'megotsthis', 'FrankerZ',
@@ -66,12 +65,12 @@ ALTER SEQUENCE quotes_quoteid_seq RESTART WITH 2
 
     async def test_update_quote_false(self):
         self.assertEqual(
-            await database.updateQuote(self.database, 'megotsthis',
-                                       'botgotsthis', 2, 'FrankerZ'),
+            await database.updateQuote('megotsthis', 'botgotsthis', 2,
+                                       'FrankerZ'),
             False)
         self.assertEqual(
-            await database.updateQuote(self.database, 'botgotsthis',
-                                       'botgotsthis', 1, 'FrankerZ'),
+            await database.updateQuote('botgotsthis', 'botgotsthis', 1,
+                                       'FrankerZ'),
             False)
         self.assertCountEqual(await self.rows('SELECT * FROM quotes'),
                               [(1, 'megotsthis', 'Kappa', self.doc_kappa),
@@ -83,10 +82,10 @@ ALTER SEQUENCE quotes_quoteid_seq RESTART WITH 2
 
     async def test_delete_quote_false(self):
         self.assertEqual(
-            await database.deleteQuote(self.database, 'megotsthis', 2),
+            await database.deleteQuote('megotsthis', 2),
             False)
         self.assertEqual(
-            await database.deleteQuote(self.database, 'botgotsthis', 1),
+            await database.deleteQuote('botgotsthis', 1),
             False)
         self.assertCountEqual(await self.rows('SELECT * FROM quotes'),
                               [(1, 'megotsthis', 'Kappa', self.doc_kappa),
@@ -98,8 +97,8 @@ ALTER SEQUENCE quotes_quoteid_seq RESTART WITH 2
 
     async def test_copy_quote(self):
         self.assertEqual(
-            await database.copyQuote(self.database, 'megotsthis',
-                                     'mebotsthis', 'botgotsthis', 1),
+            await database.copyQuote('megotsthis', 'mebotsthis', 'botgotsthis',
+                                     1),
             2)
         self.assertCountEqual(await self.rows('SELECT * FROM quotes'),
                               [(1, 'megotsthis', 'Kappa', self.doc_kappa),
@@ -116,8 +115,8 @@ ALTER SEQUENCE quotes_quoteid_seq RESTART WITH 2
     async def test_copy_quote_no_tags(self):
         await self.execute('''DELETE FROM quotes_tags''')
         self.assertEqual(
-            await database.copyQuote(self.database, 'megotsthis',
-                                     'mebotsthis', 'botgotsthis', 1),
+            await database.copyQuote('megotsthis', 'mebotsthis', 'botgotsthis',
+                                     1),
             2)
         self.assertCountEqual(await self.rows('SELECT * FROM quotes'),
                               [(1, 'megotsthis', 'Kappa', self.doc_kappa),
@@ -130,11 +129,11 @@ ALTER SEQUENCE quotes_quoteid_seq RESTART WITH 2
 
     async def test_copy_quote_none(self):
         self.assertIsNone(
-            await database.copyQuote(self.database, 'megotsthis',
-                                     'mebotsthis', 'botgotsthis', 2))
+            await database.copyQuote('megotsthis', 'mebotsthis', 'botgotsthis',
+                                     2))
         self.assertIsNone(
-            await database.copyQuote(self.database, 'botgotsthis',
-                                     'mebotsthis', 'botgotsthis', 1))
+            await database.copyQuote('botgotsthis', 'mebotsthis',
+                                     'botgotsthis', 1))
         self.assertCountEqual(await self.rows('SELECT * FROM quotes'),
                               [(1, 'megotsthis', 'Kappa', self.doc_kappa),
                                ])

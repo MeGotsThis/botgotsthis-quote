@@ -29,7 +29,7 @@ async def quoteMarkCooldown(args: ChatCommandArgs) -> None:
 
 async def processRandomQuote(args: ChatCommandArgs) -> bool:
     quote: Optional[str]
-    quote = await db_helper.getRandomQuote(args.database, args.chat.channel)
+    quote = await db_helper.getRandomQuote(args.chat.channel)
     if quote is None:
         args.chat.send('There is no quotes added')
         return False
@@ -39,8 +39,7 @@ async def processRandomQuote(args: ChatCommandArgs) -> bool:
 
 async def processQuoteId(args: ChatCommandArgs, quoteId: int) -> bool:
     quote: Optional[str]
-    quote = await db_helper.getQuoteById(args.database, args.chat.channel,
-                                         quoteId)
+    quote = await db_helper.getQuoteById(args.chat.channel, quoteId)
     if quote is None:
         args.chat.send('Cannot find that quote')
     else:
@@ -51,8 +50,7 @@ async def processQuoteId(args: ChatCommandArgs, quoteId: int) -> bool:
 async def processRandomQuoteSearch(args: ChatCommandArgs,
                                    words: List[str]) -> bool:
     quote: Optional[str]
-    quote = await db_helper.getRandomQuoteBySearch(
-        args.database, args.chat.channel, words)
+    quote = await db_helper.getRandomQuoteBySearch(args.chat.channel, words)
     if quote is None:
         args.chat.send('Cannot find a matching quote')
     else:
@@ -63,7 +61,7 @@ async def processRandomQuoteSearch(args: ChatCommandArgs,
 async def processAnyRandomQuote(args: ChatCommandArgs) -> bool:
     quote: Optional[str]
     broadcaster: Optional[str]
-    quote, broadcaster = await db_helper.getAnyRandomQuote(args.database)
+    quote, broadcaster = await db_helper.getAnyRandomQuote()
     if quote is None:
         args.chat.send('There is no quotes added')
     else:
@@ -75,8 +73,7 @@ async def processAnyRandomQuote(args: ChatCommandArgs) -> bool:
 async def processAnyQuoteId(args: ChatCommandArgs, quoteId: int) -> bool:
     quote: Optional[str]
     broadcaster: Optional[str]
-    quote, broadcaster = await db_helper.getAnyQuoteById(
-        args.database, quoteId)
+    quote, broadcaster = await db_helper.getAnyQuoteById(quoteId)
     if quote is None:
         args.chat.send('Cannot find that quote')
     else:
@@ -89,8 +86,7 @@ async def processAnyRandomQuoteSearch(args: ChatCommandArgs,
                                       words: List[str]) -> bool:
     quote: Optional[str]
     broadcaster: Optional[str]
-    quote, broadcaster = await db_helper.getAnyRandomQuoteBySearch(
-        args.database, words)
+    quote, broadcaster = await db_helper.getAnyRandomQuoteBySearch(words)
     if quote is None:
         args.chat.send('Cannot find a matching quote')
     else:
@@ -122,8 +118,7 @@ async def handleAddQuote(args: ChatCommandArgs) -> bool:
     quote: str = args.message[2:]
     try:
         quoteId: int
-        quoteId = await db_helper.addQuote(
-            args.database, args.chat.channel, args.nick, quote)
+        quoteId = await db_helper.addQuote(args.chat.channel, args.nick, quote)
 
         args.chat.send(f'''\
 Quote has been added for {args.chat.channel} with quote id {quoteId}''')
@@ -146,7 +141,7 @@ async def handleEditQuote(args: ChatCommandArgs) -> bool:
         return True
     try:
         result: bool = await db_helper.updateQuote(
-            args.database, args.chat.channel, args.nick, id, quote)
+            args.chat.channel, args.nick, id, quote)
         if not result:
             args.chat.send(f'''\
 Quote id {id} could not been updated. It may not exist.''')
@@ -170,8 +165,7 @@ async def handleDeleteQuote(args: ChatCommandArgs) -> bool:
         args.chat.send('Quote id is not a number.')
         return True
     try:
-        result = await db_helper.deleteQuote(
-            args.database, args.chat.channel, id)
+        result = await db_helper.deleteQuote(args.chat.channel, id)
         if not result:
             args.chat.send(f'''\
 Quote id {id} could not been deleted. It may not exist.''')
@@ -204,22 +198,21 @@ async def handleCopyQuote(args: ChatCommandArgs) -> bool:
     else:
         return False
     if (to not in bot.globals.channels
-            or not await args.database.hasFeature(to, 'quotes')):
+            or not await args.data.hasFeature(to, 'quotes')):
         args.chat.send(f'''\
 I am not in {to} or quotes feature is not enabled in {to}''')
         return True
 
     quote: str
     try:
-        quote = await db_helper.getQuoteById(args.database, args.chat.channel,
-                                             id)
+        quote = await db_helper.getQuoteById(args.chat.channel, id)
         if quote is None:
             args.chat.send(f'''\
 Quote id {id} could not been found. It may not exist.''')
             return True
 
         quoteId: Optional[int] = await db_helper.copyQuote(
-            args.database, args.chat.channel, to, args.nick, id)
+            args.chat.channel, to, args.nick, id)
         if quoteId is None:
             args.chat.send('Quote could not been copied.')
             return True
@@ -252,15 +245,14 @@ async def processQuoteTags(args: ChatCommandArgs,
                            quoteId: int,
                            tags: List[str]) -> bool:
     try:
-        quote = await db_helper.getQuoteById(
-            args.database, args.chat.channel, quoteId)
+        quote = await db_helper.getQuoteById(args.chat.channel, quoteId)
         if quote is None:
             args.chat.send(f'''\
 Quote id {quoteId} could not been found. It may not exist.''')
             return True
 
         currentTags: Set[str]
-        currentTags = await db_helper.getTagsOfQuote(args.database, quoteId)
+        currentTags = await db_helper.getTagsOfQuote(quoteId)
         ignoreTags: List[str] = []
         addTags: List[str] = []
         deleteTags: List[str] = []
@@ -274,10 +266,9 @@ Quote id {quoteId} could not been found. It may not exist.''')
             else:
                 addTags.append(tag)
         if addTags:
-            await db_helper.addTagsToQuote(args.database, quoteId, addTags)
+            await db_helper.addTagsToQuote(quoteId, addTags)
         if deleteTags:
-            await db_helper.deleteTagsToQuote(args.database, quoteId,
-                                              deleteTags)
+            await db_helper.deleteTagsToQuote(quoteId, deleteTags)
 
         if addTags or deleteTags:
             args.chat.send(f'Quote id {quoteId} tags have been updated')
@@ -295,13 +286,12 @@ These tags could not be used: {', '.join(ignoreTags)}''')
 async def processListQuoteTags(args: ChatCommandArgs,
                                quoteId: int) -> bool:
     try:
-        quote = await db_helper.getQuoteById(args.database,
-                                             args.chat.channel, quoteId)
+        quote = await db_helper.getQuoteById(args.chat.channel, quoteId)
         if quote is None:
             args.chat.send(f'''\
 Quote id {quoteId} could not been found. It may not exist.''')
             return True
-        tags = await db_helper.getTagsOfQuote(args.database, quoteId)
+        tags = await db_helper.getTagsOfQuote(quoteId)
         if not tags:
             args.chat.send('The quote does not have any tags')
             return True
@@ -318,7 +308,7 @@ async def handleListQuoteIds(args: ChatCommandArgs) -> bool:
 
     try:
         ids: List[int] = await db_helper.getQuoteIdsByWords(
-            args.database, args.chat.channel, list(args.message)[2:])
+            args.chat.channel, list(args.message)[2:])
         quoteIds: List[str] = [str(i) for i in ids]
         if not quoteIds:
             args.chat.send('No quotes found with those parameters')
